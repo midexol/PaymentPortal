@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "payment-portal/app.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "payment-portal/app.js"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "payment-portal/app.js"
+    }
+  ]
+}

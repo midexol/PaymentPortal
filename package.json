@@ -1,0 +1,8 @@
+{
+  "name": "payment-portal-monorepo",
+  "version": "1.0.0",
+  "description": "FUTA Payment Portal full-stack monorepo for Vercel deployment",
+  "scripts": {
+    "build": "npm --prefix payment-portal/frontend install && npm --prefix payment-portal/frontend run build"
+  }
+}
