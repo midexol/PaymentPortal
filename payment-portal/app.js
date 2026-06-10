@@ -10,6 +10,9 @@ const adminRoutes = require('./src/routes/admin');
 
 const app = express();
 
+// Enable trust proxy for reverse proxies (like Vercel) to support rate limiting
+app.set('trust proxy', 1);
+
 // ─── Security headers ─────────────────────────────────────────────────────────
 // app.use(helmet());
 const path = require('path');
