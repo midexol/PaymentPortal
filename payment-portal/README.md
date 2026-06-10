@@ -1,6 +1,6 @@
 # Payment Portal — Backend
 
-Node.js + Express + MongoDB backend for the FUTA University Payment Portal with Paystack integration.
+Node.js + Express + MongoDB backend for the University Payment Portal with Paystack integration.
 
 ## Stack
 - **Runtime**: Node.js
@@ -71,8 +71,8 @@ Initialize a new payment session.
 ```json
 {
   "studentName": "Adewale Mide",
-  "matricNumber": "FUT/CSC/20/0034",
-  "email": "mide@futa.edu.ng",
+  "matricNumber": "UNI/CSC/20/0034",
+  "email": "student@example.com",
   "phone": "08012345678",
   "department": "Computer Science",
   "level": "400 level",

@@ -36,7 +36,7 @@ export default function App() {
         </div>
         <div className="header-text">
           <h1>Payment Portal</h1>
-          <p>Federal University of Technology, Akure</p>
+          <p>Institutional Billing System</p>
         </div>
         <span className="badge">
           <i className="ti ti-circle-check" aria-hidden="true"></i> Securing via Paystack

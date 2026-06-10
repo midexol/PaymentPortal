@@ -1,6 +1,6 @@
-# FUTA University Payment Portal
+# University Payment Portal
 
-A modern, secure, full-stack university payment portal designed for the Federal University of Technology, Akure (FUTA). Built with a **React** frontend, an **Express/Node.js** backend, a **MongoDB** database, and seamless **Paystack** payment gateway integration.
+A modern, secure, full-stack university payment portal. Built with a **React** frontend, an **Express/Node.js** backend, a **MongoDB** database, and seamless **Paystack** payment gateway integration.
 
 ---
 

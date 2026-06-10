@@ -67,7 +67,7 @@ function buildReceiptHTML(payment) {
   <div class="wrapper">
     <div class="header">
       <h1>Payment Receipt</h1>
-      <p>Federal University of Technology, Akure</p>
+      <p>Institutional Billing System</p>
       <span class="badge">✓ Payment Successful</span>
     </div>
     <div class="body">
@@ -98,10 +98,10 @@ function buildReceiptHTML(payment) {
         <span>${payment.reference}</span>
       </div>
 
-      <p style="font-size:13px;color:#666;margin:0">If you have any issues, contact the Bursary at <a href="mailto:bursary@futa.edu.ng" style="color:#1a56db">bursary@futa.edu.ng</a> and quote your reference number.</p>
+      <p style="font-size:13px;color:#666;margin:0">If you have any issues, contact the Bursary at <a href="mailto:bursary@example.edu" style="color:#1a56db">bursary@example.edu</a> and quote your reference number.</p>
     </div>
     <div class="footer">
-      This is an automated receipt from the FUTA Payment Portal.<br/>
+      This is an automated receipt from the Payment Portal.<br/>
       Powered by <a href="https://paystack.com">Paystack</a> &mdash; Secured &amp; Encrypted
     </div>
   </div>
@@ -118,12 +118,12 @@ async function sendReceiptEmail(payment) {
   const html = buildReceiptHTML(payment);
 
   await transporter.sendMail({
-    from: process.env.EMAIL_FROM || '"FUTA Payment Portal" <noreply@futa.edu.ng>',
+    from: process.env.EMAIL_FROM || '"Payment Portal" <noreply@example.edu>',
     to: payment.email,
     subject: `Payment Receipt — ${payment.paymentLabel} (${payment.session}) | Ref: ${payment.reference}`,
     html,
     text: `
-Payment Receipt — FUTA Payment Portal
+Payment Receipt — Payment Portal
 
 Hi ${payment.studentName},
 Your payment of ${formatNaira(payment.totalKobo)} for ${payment.paymentLabel} (${payment.session}) was successful.
@@ -133,7 +133,7 @@ Date: ${formatDate(payment.paidAt)}
 Matric: ${payment.matricNumber}
 
 Keep this reference for your records.
-Contact bursary@futa.edu.ng for any issues.
+Contact bursary@example.edu for any issues.
     `.trim(),
   });
 }
@@ -188,7 +188,7 @@ async function sendAdminDigest(adminEmail, summary) {
       </table>
     </div>
     <div style="background:#f8f9fb;border-top:1px solid #e5e5e5;padding:14px 28px;text-align:center;font-size:12px;color:#999">
-      FUTA Payment Portal — Admin Digest
+      Payment Portal — Admin Digest
     </div>
   </div>
 </body></html>`;
@@ -196,7 +196,7 @@ async function sendAdminDigest(adminEmail, summary) {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to: adminEmail,
-    subject: `FUTA Portal Daily Digest — ${summary.date} (${summary.totalCount} payments)`,
+    subject: `Portal Daily Digest — ${summary.date} (${summary.totalCount} payments)`,
     html,
   });
 }
