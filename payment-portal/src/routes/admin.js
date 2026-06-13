@@ -5,9 +5,10 @@ const adminAuth = require('../middleware/adminAuth');
 const {
   login,
   register,
+  getSetupStatus,
   getDashboard,
   listPayments,
-  exportCSV,
+  exportPDF,
   getPaymentDetail,
   sendDigest,
 } = require('../controllers/adminController');
@@ -21,14 +22,15 @@ const loginLimiter = rateLimit({
 
 // Public
 router.post('/login', loginLimiter, login);
-router.post('/register', register); // Guarded by secretKey in controller — remove after seeding
+router.post('/register', register); // Guarded by count / token in controller
+router.get('/setup-status', getSetupStatus);
 
 // Protected (all routes below require valid JWT)
 router.use(adminAuth);
 
 router.get('/dashboard', getDashboard);
 router.get('/payments', listPayments);
-router.get('/payments/export', exportCSV);         // Must be before /:id
+router.get('/payments/export-pdf', exportPDF);         // Must be before /:id
 router.get('/payments/:id', getPaymentDetail);
 router.post('/digest', sendDigest);
 

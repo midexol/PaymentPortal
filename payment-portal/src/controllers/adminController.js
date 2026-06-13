@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const Payment = require('../models/Payment');
 const { sendAdminDigest } = require('../config/mailer');
+const PDFDocument = require('pdfkit');
 
 // ─── POST /api/admin/login ────────────────────────────────────────────────────
 exports.login = async (req, res) => {
@@ -36,18 +37,51 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password, role, secretKey } = req.body;
 
-    // Simple bootstrap guard — remove after first admin is created
-    if (secretKey !== process.env.ADMIN_JWT_SECRET) {
-      return res.status(403).json({ success: false, message: 'Forbidden.' });
+    const adminCount = await Admin.countDocuments();
+    if (adminCount > 0) {
+      // If admins exist, we require token verification of a superadmin
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ success: false, message: 'Registration is closed. Access denied.' });
+      }
+      const token = authHeader.split(' ')[1];
+      try {
+        const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET);
+        const requester = await Admin.findById(decoded.id);
+        if (!requester || requester.role !== 'superadmin' || !requester.isActive) {
+          return res.status(403).json({ success: false, message: 'Forbidden. Only active superadmins can create new admins.' });
+        }
+      } catch (jwtErr) {
+        return res.status(401).json({ success: false, message: 'Invalid or expired token.' });
+      }
+    } else {
+      // Bootstrapping the very first admin
+      if (secretKey !== process.env.ADMIN_JWT_SECRET) {
+        return res.status(403).json({ success: false, message: 'Forbidden.' });
+      }
     }
 
     const exists = await Admin.findOne({ email });
     if (exists) return res.status(409).json({ success: false, message: 'Admin already exists.' });
 
-    const admin = await Admin.create({ name, email, password, role: role || 'finance' });
+    // Force role to superadmin if it's the very first admin to make sure we have a superadmin
+    const finalRole = adminCount === 0 ? 'superadmin' : (role || 'finance');
+
+    const admin = await Admin.create({ name, email, password, role: finalRole });
     return res.status(201).json({ success: true, admin });
   } catch (err) {
     console.error('[admin.register]', err.message);
+    return res.status(500).json({ success: false, message: 'Server error.' });
+  }
+};
+
+// ─── GET /api/admin/setup-status ──────────────────────────────────────────────
+exports.getSetupStatus = async (req, res) => {
+  try {
+    const adminCount = await Admin.countDocuments();
+    return res.json({ success: true, requiresSetup: adminCount === 0 });
+  } catch (err) {
+    console.error('[admin.getSetupStatus]', err.message);
     return res.status(500).json({ success: false, message: 'Server error.' });
   }
 };
@@ -186,11 +220,11 @@ exports.listPayments = async (req, res) => {
   }
 };
 
-// ─── GET /api/admin/payments/export ──────────────────────────────────────────
-// Returns CSV — same filters as listPayments but no pagination
-exports.exportCSV = async (req, res) => {
+// ─── GET /api/admin/payments/export-pdf ──────────────────────────────────────
+// Returns PDF — same filters as listPayments but no pagination
+exports.exportPDF = async (req, res) => {
   try {
-    const { status, paymentType, session, startDate, endDate } = req.query;
+    const { status, paymentType, session, startDate, endDate, search } = req.query;
     const filter = {};
     if (status) filter.status = status;
     if (paymentType) filter.paymentType = paymentType;
@@ -200,60 +234,109 @@ exports.exportCSV = async (req, res) => {
       if (startDate) filter.createdAt.$gte = new Date(startDate);
       if (endDate) filter.createdAt.$lte = new Date(endDate);
     }
+    if (search) {
+      const rx = new RegExp(search, 'i');
+      filter.$or = [{ studentName: rx }, { matricNumber: rx }, { email: rx }, { reference: rx }];
+    }
 
     const payments = await Payment.find(filter, { paystackData: 0 }).sort({ createdAt: -1 });
 
-    const header = [
-      'Reference',
-      'Student Name',
-      'Matric Number',
-      'Email',
-      'Phone',
-      'Department',
-      'Level',
-      'Payment Type',
-      'Session',
-      'Amount (₦)',
-      'Charge (₦)',
-      'Total (₦)',
-      'Status',
-      'Channel',
-      'Paid At',
-      'Created At',
-    ].join(',');
+    const totalCount = payments.length;
+    const totalAmount = payments.reduce((sum, p) => sum + (p.totalKobo || 0), 0) / 100;
+    const successCount = payments.filter(p => p.status === 'success').length;
 
-    const rows = payments.map((p) =>
-      [
-        p.reference,
-        `"${p.studentName}"`,
-        p.matricNumber,
-        p.email,
-        p.phone || '',
-        `"${p.department || ''}"`,
-        p.level || '',
-        p.paymentLabel,
-        p.session,
-        (p.amountKobo / 100).toFixed(2),
-        (p.chargeKobo / 100).toFixed(2),
-        (p.totalKobo / 100).toFixed(2),
-        p.status,
-        p.channel || '',
-        p.paidAt ? new Date(p.paidAt).toISOString() : '',
-        new Date(p.createdAt).toISOString(),
-      ].join(',')
-    );
+    // Create PDF
+    const doc = new PDFDocument({ margin: 30, size: 'A4' });
 
-    const csv = [header, ...rows].join('\n');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="payments-report-${Date.now()}.pdf"`);
+    doc.pipe(res);
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="payments-${Date.now()}.csv"`
-    );
-    return res.send(csv);
+    // Title
+    doc.fillColor('#0f172a').fontSize(16).text('Institutional Billing System', { align: 'center' });
+    doc.fontSize(11).fillColor('#64748b').text('Financial Transaction Audit Report', { align: 'center' });
+    doc.moveDown(1);
+
+    // Metadata line
+    doc.fontSize(8).fillColor('#475569').text(`Generated on: ${new Date().toLocaleString('en-NG')}`, { align: 'right' });
+    doc.moveDown(0.5);
+
+    // Summary Box
+    const startY = doc.y;
+    doc.rect(30, startY, 535, 60).fillAndStroke('#f8fafc', '#cbd5e1');
+    const boxY = startY + 10;
+    doc.fillColor('#0f172a');
+    doc.fontSize(9).text(`Total Records: ${totalCount}`, 45, boxY);
+    doc.text(`Total Revenue: NGN ${totalAmount.toFixed(2)}`, 160, boxY);
+    doc.text(`Successful Transactions: ${successCount}`, 340, boxY);
+    doc.text(`Active Filters: Status [${status || 'All'}] | Category [${paymentType || 'All'}] | Session [${session || 'All'}]`, 45, boxY + 22, { width: 500 });
+
+    doc.y = startY + 60;
+    doc.moveDown(1.5);
+
+    // Table Header
+    const tableHeaderY = doc.y;
+    doc.rect(30, tableHeaderY, 535, 20).fill('#0f172a');
+    doc.fillColor('#ffffff').fontSize(8);
+    doc.text('Reference', 35, tableHeaderY + 6);
+    doc.text('Student Name', 125, tableHeaderY + 6);
+    doc.text('Matric No', 240, tableHeaderY + 6);
+    doc.text('Category', 315, tableHeaderY + 6);
+    doc.text('Session', 390, tableHeaderY + 6);
+    doc.text('Amount (N)', 445, tableHeaderY + 6);
+    doc.text('Status', 510, tableHeaderY + 6);
+
+    let currentY = tableHeaderY + 20;
+
+    // Table Rows
+    doc.fillColor('#334155');
+    for (const p of payments) {
+      if (currentY > 750) {
+        doc.addPage();
+        currentY = 40;
+        
+        doc.rect(30, currentY, 535, 20).fill('#0f172a');
+        doc.fillColor('#ffffff').fontSize(8);
+        doc.text('Reference', 35, currentY + 6);
+        doc.text('Student Name', 125, currentY + 6);
+        doc.text('Matric No', 240, currentY + 6);
+        doc.text('Category', 315, currentY + 6);
+        doc.text('Session', 390, currentY + 6);
+        doc.text('Amount (N)', 445, currentY + 6);
+        doc.text('Status', 510, currentY + 6);
+        currentY += 20;
+        doc.fillColor('#334155');
+      }
+
+      doc.moveTo(30, currentY).lineTo(565, currentY).strokeColor('#e2e8f0').lineWidth(0.5).stroke();
+
+      const textY = currentY + 6;
+      doc.text(p.reference, 35, textY);
+      
+      const name = p.studentName.length > 20 ? p.studentName.substring(0, 18) + '..' : p.studentName;
+      doc.text(name, 125, textY);
+      doc.text(p.matricNumber, 240, textY);
+      doc.text(p.paymentLabel, 315, textY);
+      doc.text(p.session, 390, textY);
+      doc.text((p.totalKobo / 100).toFixed(2), 445, textY, { width: 55, align: 'right' });
+      
+      if (p.status === 'success') {
+        doc.fillColor('#15803d');
+      } else if (p.status === 'pending') {
+        doc.fillColor('#b45309');
+      } else {
+        doc.fillColor('#b91c1c');
+      }
+      doc.text(p.status.toUpperCase(), 510, textY);
+      doc.fillColor('#334155');
+
+      currentY += 20;
+    }
+
+    doc.end();
   } catch (err) {
-    console.error('[admin.exportCSV]', err.message);
-    return res.status(500).json({ success: false, message: 'Server error.' });
+    console.error('[admin.exportPDF]', err.message);
+    return res.status(500).json({ success: false, message: 'Server error generating PDF report.' });
   }
 };
 
