@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "payment-portal/app.js",
-      "use": "@vercel/node"
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": "payment-portal/public/**"
+      }
     }
   ],
   "routes": [
