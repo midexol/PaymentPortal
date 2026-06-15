@@ -29,11 +29,11 @@ export default function App() {
     matricNumber: '',
     email: '',
     phone: '',
-    department: '',
+    department: 'Software and Web Development',
     level: ''
   });
 
-  const [selectedType, setSelectedType] = useState('fees');
+  const [selectedTypes, setSelectedTypes] = useState(['dept_due']);
   const [session, setSession] = useState('2024/2025');
 
   // Sync state with back/forward history events
@@ -193,9 +193,9 @@ export default function App() {
 
             {paneStep === 2 && (
               <PaymentTypeSelector
-                selectedType={selectedType}
+                selectedTypes={selectedTypes}
                 session={session}
-                onChangeType={setSelectedType}
+                onChangeTypes={setSelectedTypes}
                 onChangeSession={setSession}
                 onNext={() => setPaneStep(3)}
                 onBack={() => setPaneStep(1)}
@@ -205,7 +205,7 @@ export default function App() {
             {paneStep === 3 && (
               <PaymentSummary
                 studentDetails={studentDetails}
-                selectedType={selectedType}
+                selectedTypes={selectedTypes}
                 session={session}
                 onEdit={() => setPaneStep(2)}
               />

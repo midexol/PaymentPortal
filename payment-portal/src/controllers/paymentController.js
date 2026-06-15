@@ -11,23 +11,41 @@ const crypto = require('crypto');
 // ─── POST /api/pay/initialize ─────────────────────────────────────────────────
 exports.initializePayment = async (req, res) => {
   try {
-    const { studentName, matricNumber, email, phone, department, level, paymentType, session } =
+    const { studentName, matricNumber, email, phone, department, level, paymentType, paymentTypes, session } =
       req.body;
 
     // Validate required fields
-    if (!studentName || !matricNumber || !email || !paymentType || !session) {
+    if (!studentName || !matricNumber || !email || !session) {
       return res.status(400).json({ success: false, message: 'Missing required fields.' });
     }
 
-    const config = PAYMENT_AMOUNTS[paymentType];
-    if (!config) {
-      return res.status(400).json({ success: false, message: 'Invalid payment type.' });
+    // Determine the list of payment types
+    let types = [];
+    if (Array.isArray(paymentTypes) && paymentTypes.length > 0) {
+      types = paymentTypes;
+    } else if (paymentType) {
+      types = [paymentType];
+    } else {
+      return res.status(400).json({ success: false, message: 'No payment type selected.' });
     }
 
-    const amountKobo = config.amountKobo;
+    // Sum amount and construct label
+    let amountKobo = 0;
+    const labels = [];
+    for (const t of types) {
+      const config = PAYMENT_AMOUNTS[t];
+      if (!config) {
+        return res.status(400).json({ success: false, message: `Invalid payment type: ${t}` });
+      }
+      amountKobo += config.amountKobo;
+      labels.push(config.label);
+    }
+
+    const paymentLabel = labels.join(', ');
     const chargeKobo = computeCharge(amountKobo);
     const totalKobo = amountKobo + chargeKobo;
-    const reference = generateReference(paymentType);
+    const reference = generateReference(types[0] || 'other');
+    const dbPaymentType = 'other'; // Stored as 'other' to satisfy Mongoose model enum constraints
 
     // Call Paystack initialize endpoint
     const { data } = await paystackClient.post('/transaction/initialize', {
@@ -41,13 +59,13 @@ exports.initializePayment = async (req, res) => {
         matricNumber,
         department,
         level,
-        paymentType,
-        paymentLabel: config.label,
+        paymentType: dbPaymentType,
+        paymentLabel,
         session,
         custom_fields: [
           { display_name: 'Matric Number', variable_name: 'matric_number', value: matricNumber },
           { display_name: 'Department', variable_name: 'department', value: department || 'N/A' },
-          { display_name: 'Payment For', variable_name: 'payment_for', value: config.label },
+          { display_name: 'Payment For', variable_name: 'payment_for', value: paymentLabel },
           { display_name: 'Session', variable_name: 'session', value: session },
         ],
       },
@@ -65,8 +83,8 @@ exports.initializePayment = async (req, res) => {
       phone,
       department,
       level,
-      paymentType,
-      paymentLabel: config.label,
+      paymentType: dbPaymentType,
+      paymentLabel,
       session,
       amountKobo,
       chargeKobo,

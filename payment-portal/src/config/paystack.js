@@ -12,12 +12,13 @@ const paystackClient = axios.create({
 
 // Fixed amounts per payment type (in kobo)
 const PAYMENT_AMOUNTS = {
-  fees:    { label: 'School fees',   amountKobo: 15000000 }, // ₦150,000
-  hostel:  { label: 'Hostel fee',    amountKobo:  4500000 }, // ₦45,000
-  exam:    { label: 'Exam fees',     amountKobo:   500000 }, // ₦5,000
-  library: { label: 'Library dues',  amountKobo:   300000 }, // ₦3,000
-  sport:   { label: 'Sport levy',    amountKobo:   250000 }, // ₦2,500
-  other:   { label: 'Others',        amountKobo:  1000000 }, // ₦10,000
+  dept_due:     { label: 'Departmental due',       amountKobo: 200000 },  // ₦2,000
+  hnd1_manual:  { label: 'HND I Manuals',          amountKobo: 500000 },  // ₦5,000
+  hnd2_manual:  { label: 'HND II Manuals',         amountKobo: 500000 },  // ₦5,000
+  seminar:      { label: 'Seminar',                amountKobo: 300000 },  // ₦3,000
+  project:      { label: 'Project Defence',        amountKobo: 400000 },  // ₦4,000
+  binding:      { label: 'Binding',                amountKobo: 150000 },  // ₦1,500
+  clearance:    { label: 'Departmental Clearance', amountKobo: 100000 },  // ₦1,000
 };
 
 /**

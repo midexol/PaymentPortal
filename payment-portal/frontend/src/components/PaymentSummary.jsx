@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { PAYMENT_TYPES, computeFrontendCharge } from './PaymentTypeSelector';
 
-export default function PaymentSummary({ studentDetails, selectedType, session, onEdit }) {
+export default function PaymentSummary({ studentDetails, selectedTypes, session, onEdit }) {
   const [loading, setLoading] = useState(false);
 
-  const currentItem = PAYMENT_TYPES.find(p => p.type === selectedType) || PAYMENT_TYPES[0];
-  const subtotal = currentItem.amount;
+  const selectedItems = PAYMENT_TYPES.filter(p => selectedTypes.includes(p.type));
+  const subtotal = selectedItems.reduce((sum, item) => sum + item.amount, 0);
   const charge = computeFrontendCharge(subtotal);
   const total = subtotal + charge;
 
@@ -28,7 +28,7 @@ export default function PaymentSummary({ studentDetails, selectedType, session, 
           phone: studentDetails.phone || '',
           department: studentDetails.department || '',
           level: studentDetails.level || '',
-          paymentType: selectedType,
+          paymentTypes: selectedTypes,
           session: session
         })
       });
@@ -36,7 +36,7 @@ export default function PaymentSummary({ studentDetails, selectedType, session, 
       const resData = await response.json();
 
       if (resData.success && resData.data && resData.data.authorizationUrl) {
-        // Redirect to Paystack checkouts
+        // Redirect to Paystack checkout
         window.location.href = resData.data.authorizationUrl;
       } else {
         alert('Payment initialization failed: ' + (resData.message || 'Check backend configuration.'));
@@ -87,7 +87,9 @@ export default function PaymentSummary({ studentDetails, selectedType, session, 
             )}
 
             <span>Payment for</span>
-            <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>{currentItem.label}</span>
+            <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>
+              {selectedItems.map(item => item.label).join(', ')}
+            </span>
 
             <span>Academic session</span>
             <span style={{ color: 'var(--color-text-primary)' }}>{session}</span>

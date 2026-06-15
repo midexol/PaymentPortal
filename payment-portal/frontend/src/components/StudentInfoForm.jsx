@@ -2,20 +2,12 @@ import React from 'react';
 
 export default function StudentInfoForm({ studentDetails, onChange, onNext }) {
   const departments = [
-    'Computer Science',
-    'Electrical Engineering',
-    'Civil Engineering',
-    'Mechanical Engineering',
-    'Physics',
-    'Mathematics'
+    'Software and Web Development'
   ];
 
   const levels = [
-    '100 level',
-    '200 level',
-    '300 level',
-    '400 level',
-    '500 level'
+    'HND I',
+    'HND II'
   ];
 
   const handleInputChange = (field, value) => {
@@ -54,7 +46,7 @@ export default function StudentInfoForm({ studentDetails, onChange, onNext }) {
             <input
               type="text"
               id="matric"
-              placeholder="e.g. FUT/CSC/20/0034"
+              placeholder="e.g. FPA/SW/19/3-0001"
               value={studentDetails.matricNumber || ''}
               onChange={(e) => handleInputChange('matricNumber', e.target.value)}
               required
