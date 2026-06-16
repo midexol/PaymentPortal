@@ -49,6 +49,8 @@ export default function StudentInfoForm({ studentDetails, onChange, onNext }) {
               placeholder="e.g. FPA/SW/19/3-0001"
               value={studentDetails.matricNumber || ''}
               onChange={(e) => handleInputChange('matricNumber', e.target.value)}
+              readOnly
+              style={{ backgroundColor: 'var(--color-background-secondary)', cursor: 'not-allowed' }}
               required
             />
           </div>

@@ -201,4 +201,26 @@ async function sendAdminDigest(adminEmail, summary) {
   });
 }
 
-module.exports = { sendReceiptEmail, sendAdminDigest };
+/**
+ * Send OTP verification email to student
+ */
+async function sendOTPNotification(email, matricNumber, otpCode) {
+  await transporter.sendMail({
+    from: process.env.EMAIL_FROM || '"Payment Portal" <noreply@example.edu>',
+    to: email,
+    subject: `Verification Code: ${otpCode} for Student Payment History`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 20px auto; padding: 25px; border: 1px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+        <h2 style="color: #081633; margin-top: 0; font-size: 20px; border-bottom: 2px solid #eff6ff; padding-bottom: 10px;">Payment Portal Access Code</h2>
+        <p style="color: #4b5563; font-size: 14px;">You requested to access the secure payment history portal for matriculation number: <strong style="color: #111827;">${matricNumber}</strong>.</p>
+        <p style="color: #4b5563; font-size: 14px;">Please use the following verification code to confirm your identity:</p>
+        <div style="background: #eff6ff; padding: 16px; text-align: center; border-radius: 8px; font-size: 28px; font-weight: bold; letter-spacing: 6px; color: #1d4ed8; margin: 24px 0; border: 1px dashed #bfdbfe;">
+          ${otpCode}
+        </div>
+        <p style="font-size: 12px; color: #6b7280; margin-bottom: 0; line-height: 1.5;">This code is valid for 10 minutes. If you did not make this request, someone may have typed your matric number by mistake. You can safely ignore this email.</p>
+      </div>
+    `,
+  });
+}
+
+module.exports = { sendReceiptEmail, sendAdminDigest, sendOTPNotification };

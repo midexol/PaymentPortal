@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function PaymentHistory() {
-  const [matric, setMatric] = useState('');
+export default function PaymentHistory({ sessionMatric, sessionToken }) {
   const [loading, setLoading] = useState(false);
-  const [verifyingMap, setVerifyingMap] = useState({});
   const [historyData, setHistoryData] = useState(null);
   const [error, setError] = useState('');
+  const [verifyingMap, setVerifyingMap] = useState({});
 
-  const handleSearch = async (e) => {
-    if (e) e.preventDefault();
-    if (!matric.trim()) return;
+  useEffect(() => {
+    if (sessionMatric) {
+      fetchHistory();
+    }
+  }, [sessionMatric]);
 
+  const fetchHistory = async () => {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/payments/history/${encodeURIComponent(matric.trim())}`);
+      const response = await fetch(`/api/payments/history/${encodeURIComponent(sessionMatric)}`, {
+        headers: {
+          'Authorization': `Bearer ${sessionToken}`
+        }
+      });
       const resData = await response.json();
 
       if (resData.success) {
@@ -40,11 +46,10 @@ export default function PaymentHistory() {
       
       if (resData.success) {
         alert('Payment verified successfully!');
-        // Refresh the list
-        handleSearch();
+        fetchHistory();
       } else {
         alert(`Verification update: ${resData.message}`);
-        handleSearch();
+        fetchHistory();
       }
     } catch (err) {
       console.error(err);
@@ -97,33 +102,17 @@ export default function PaymentHistory() {
     });
   };
 
+  if (loading && !historyData) {
+    return (
+      <div style={{ textAlign: 'center', padding: '3rem 0' }}>
+        <span className="spinner large"></span>
+        <p style={{ marginTop: '12px', color: 'var(--color-text-secondary)' }}>Loading payment history...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="view active" id="view-history">
-      <form onSubmit={handleSearch} style={{ marginBottom: '2rem' }}>
-        <div className="form-group">
-          <label htmlFor="history-matric">Find your payment records</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              id="history-matric"
-              placeholder="Enter Matric Number (e.g. FUT/CSC/20/0034)"
-              value={matric}
-              onChange={(e) => setMatric(e.target.value)}
-              style={{ flex: 1 }}
-              required
-            />
-            <button
-              type="submit"
-              className="pay-btn"
-              disabled={loading}
-              style={{ width: 'auto', marginTop: 0, padding: '10px 24px' }}
-            >
-              {loading ? 'Searching...' : 'Search'}
-            </button>
-          </div>
-        </div>
-      </form>
-
       {error && (
         <div style={{ color: 'var(--color-text-warning)', marginBottom: '1rem', fontSize: '14px', fontWeight: 500 }}>
           {error}
@@ -155,8 +144,8 @@ export default function PaymentHistory() {
             <div className="section-title">Transactions list</div>
             
             {historyData.payments.length === 0 ? (
-              <div style={{ padding: '24px 0', textColor: 'var(--color-text-secondary)', textAlign: 'center', fontSize: '14px' }}>
-                No records found for this matric number.
+              <div style={{ padding: '24px 0', color: 'var(--color-text-secondary)', textAlign: 'center', fontSize: '14px' }}>
+                No records found for your matric number.
               </div>
             ) : (
               historyData.payments.map((payment) => (
@@ -176,6 +165,30 @@ export default function PaymentHistory() {
                       <span className={`hist-status ${payment.status}`}>
                         {payment.status === 'success' ? 'Paid' : payment.status}
                       </span>
+                      
+                      {payment.status === 'success' && (
+                        <a
+                          href={`/api/payments/receipt/${payment.reference}/pdf`}
+                          download={`receipt_${payment.reference}.pdf`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '3px 8px',
+                            fontSize: '11px',
+                            border: '1px solid var(--brand)',
+                            borderRadius: '4px',
+                            background: 'var(--color-background-info)',
+                            cursor: 'pointer',
+                            color: 'var(--brand)',
+                            fontWeight: 600,
+                            textDecoration: 'none'
+                          }}
+                        >
+                          <i className="ti ti-download" style={{ fontSize: '12px' }}></i> PDF
+                        </a>
+                      )}
+
                       {payment.status === 'pending' && (
                         <button
                           type="button"
@@ -202,13 +215,6 @@ export default function PaymentHistory() {
             )}
           </div>
         </>
-      )}
-
-      {!historyData && !loading && (
-        <div style={{ textAlign: 'center', padding: '3rem 0', color: 'var(--color-text-secondary)', border: '1px dashed var(--color-border-secondary)', borderRadius: 'var(--border-radius-lg)', background: '#fff' }}>
-          <i className="ti ti-receipt" style={{ fontSize: '32px', display: 'block', marginBottom: '12px', color: 'var(--color-border-secondary)' }}></i>
-          Enter your student matric number above to display transaction history.
-        </div>
       )}
     </div>
   );

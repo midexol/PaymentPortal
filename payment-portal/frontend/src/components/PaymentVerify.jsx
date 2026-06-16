@@ -131,8 +131,16 @@ export default function PaymentVerify({ onNavigate }) {
           </div>
 
           <div className="verify-actions">
-            <button className="pay-btn primary-large" onClick={handlePrint}>
-              <i className="ti ti-printer"></i> Print Receipt
+            <a
+              href={`/api/payments/receipt/${paymentDetails?.reference}/pdf`}
+              download={`receipt_${paymentDetails?.reference}.pdf`}
+              className="pay-btn primary-large"
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', textDecoration: 'none' }}
+            >
+              <i className="ti ti-download"></i> Download PDF
+            </a>
+            <button className="pay-btn secondary" onClick={handlePrint}>
+              <i className="ti ti-printer"></i> Print
             </button>
             <button className="pay-btn secondary" onClick={() => onNavigate('/')}>
               Return to Portal

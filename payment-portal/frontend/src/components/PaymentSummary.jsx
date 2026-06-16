@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PAYMENT_TYPES, computeFrontendCharge } from './PaymentTypeSelector';
 
-export default function PaymentSummary({ studentDetails, selectedTypes, session, onEdit }) {
+export default function PaymentSummary({ studentDetails, selectedTypes, session, sessionToken, onEdit }) {
   const [loading, setLoading] = useState(false);
 
   const selectedItems = PAYMENT_TYPES.filter(p => selectedTypes.includes(p.type));
@@ -18,9 +18,13 @@ export default function PaymentSummary({ studentDetails, selectedTypes, session,
 
     setLoading(true);
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (sessionToken) {
+        headers['Authorization'] = `Bearer ${sessionToken}`;
+      }
       const response = await fetch('/api/payments/initialize', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           studentName: studentDetails.studentName,
           matricNumber: studentDetails.matricNumber,

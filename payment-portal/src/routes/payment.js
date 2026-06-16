@@ -6,6 +6,9 @@ const {
   verifyPayment,
   getPaymentHistory,
   getReceipt,
+  getReceiptPDF,
+  accessPortal,
+  verifyPortalSession,
 } = require('../controllers/paymentController');
 
 // Rate limiter: max 10 payment initializations per IP per 15 min
@@ -26,5 +29,14 @@ router.get('/history/:matricNumber', getPaymentHistory);
 
 // GET /api/pay/receipt/:reference
 router.get('/receipt/:reference', getReceipt);
+
+// GET /api/pay/receipt/:reference/pdf
+router.get('/receipt/:reference/pdf', getReceiptPDF);
+
+// POST /api/pay/session/access
+router.post('/session/access', accessPortal);
+
+// POST /api/pay/session/verify
+router.post('/session/verify', verifyPortalSession);
 
 module.exports = router;
