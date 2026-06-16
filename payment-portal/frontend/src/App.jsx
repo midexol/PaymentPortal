@@ -20,9 +20,8 @@ export default function App() {
     return storedUser ? JSON.parse(storedUser) : null;
   });
 
-  // Student portal session states
+  // Student portal session states (token-free)
   const [sessionMatric, setSessionMatric] = useState(sessionStorage.getItem('studentMatric') || '');
-  const [sessionToken, setSessionToken] = useState(sessionStorage.getItem('studentToken') || '');
 
   // Student portal navigation/wizard states
   const [activeTab, setActiveTab] = useState('pay'); // 'pay' or 'history'
@@ -46,11 +45,8 @@ export default function App() {
 
   // Access Gate states
   const [gateMatric, setGateMatric] = useState('');
-  const [gateCode, setGateCode] = useState('');
-  const [gateStep, setGateStep] = useState(1); // 1: Enter Matric, 2: Enter OTP
   const [gateError, setGateError] = useState('');
   const [gateLoading, setGateLoading] = useState(false);
-  const [maskedEmail, setMaskedEmail] = useState('');
 
   // Sync state with back/forward history events
   useEffect(() => {
@@ -82,8 +78,8 @@ export default function App() {
     setActiveTab(tab);
   };
 
-  // ─── ACCESS GATE SUBMISSIONS ─────────────────────────────────────────────────
-  const handleAccessSubmit = async (e) => {
+  // ─── ACCESS GATE SUBMISSIONS (OTP-FREE & TOKEN-FREE) ──────────────────────────
+  const handleAccessSubmit = (e) => {
     e.preventDefault();
     if (!gateMatric.trim()) return;
 
@@ -96,95 +92,64 @@ export default function App() {
 
     setGateLoading(true);
     setGateError('');
-    try {
-      const response = await fetch('/api/payments/session/access', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matricNumber: gateMatric.trim() })
-      });
-      const data = await response.json();
+    const formattedMatric = gateMatric.trim().toUpperCase();
 
-      if (response.ok && data.success) {
-        if (data.verified) {
-          // New student, bypassed verification directly
-          const newDetails = {
-            studentName: '',
-            matricNumber: gateMatric.trim().toUpperCase(),
-            email: '',
-            phone: '',
-            department: 'Software and Web Development',
-            level: ''
-          };
-          sessionStorage.setItem('studentMatric', gateMatric.trim().toUpperCase());
-          sessionStorage.setItem('studentDetails', JSON.stringify(newDetails));
-          setSessionMatric(gateMatric.trim().toUpperCase());
-          setStudentDetails(newDetails);
-        } else {
-          // OTP code sent
-          setMaskedEmail(data.emailMasked);
-          setGateStep(2);
-        }
-      } else {
-        setGateError(data.message || 'Access request failed.');
-      }
-    } catch (err) {
-      console.error(err);
-      setGateError('Could not connect to the backend server. Please try again.');
-    } finally {
-      setGateLoading(false);
-    }
-  };
-
-  const handleVerifySubmit = async (e) => {
-    e.preventDefault();
-    if (!gateCode.trim()) return;
-
-    setGateLoading(true);
-    setGateError('');
-    try {
-      const response = await fetch('/api/payments/session/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ matricNumber: gateMatric.trim(), code: gateCode.trim() })
-      });
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        // Unlocked session
-        const fullDetails = {
-          studentName: data.studentDetails.studentName,
-          matricNumber: gateMatric.trim().toUpperCase(),
-          email: data.studentDetails.email,
-          phone: data.studentDetails.phone || '',
-          department: data.studentDetails.department || 'Software and Web Development',
-          level: data.studentDetails.level || 'HND I'
+    // Check if user has history to prefill name/details
+    fetch(`/api/payments/history/${encodeURIComponent(formattedMatric)}`)
+      .then(res => res.json())
+      .then(resData => {
+        let prefilledDetails = {
+          studentName: '',
+          matricNumber: formattedMatric,
+          email: '',
+          phone: '',
+          department: 'Software and Web Development',
+          level: 'HND I'
         };
-        sessionStorage.setItem('studentMatric', gateMatric.trim().toUpperCase());
-        sessionStorage.setItem('studentToken', data.token);
-        sessionStorage.setItem('studentDetails', JSON.stringify(fullDetails));
-        setSessionMatric(gateMatric.trim().toUpperCase());
-        setSessionToken(data.token);
-        setStudentDetails(fullDetails);
-      } else {
-        setGateError(data.message || 'Verification failed. Incorrect code.');
-      }
-    } catch (err) {
-      console.error(err);
-      setGateError('Could not connect to the backend server. Please try again.');
-    } finally {
-      setGateLoading(false);
-    }
+
+        if (resData.success && resData.data && resData.data.payments && resData.data.payments.length > 0) {
+          // Find the last successful payment to prefill details
+          const lastSuccess = resData.data.payments.find(p => p.status === 'success') || resData.data.payments[0];
+          prefilledDetails = {
+            studentName: lastSuccess.studentName || '',
+            matricNumber: formattedMatric,
+            email: lastSuccess.email || '',
+            phone: lastSuccess.phone || '',
+            department: lastSuccess.department || 'Software and Web Development',
+            level: lastSuccess.level || 'HND I'
+          };
+        }
+
+        sessionStorage.setItem('studentMatric', formattedMatric);
+        sessionStorage.setItem('studentDetails', JSON.stringify(prefilledDetails));
+        setSessionMatric(formattedMatric);
+        setStudentDetails(prefilledDetails);
+      })
+      .catch(err => {
+        console.error('Prefill failed, fallback to empty:', err);
+        const fallbackDetails = {
+          studentName: '',
+          matricNumber: formattedMatric,
+          email: '',
+          phone: '',
+          department: 'Software and Web Development',
+          level: 'HND I'
+        };
+        sessionStorage.setItem('studentMatric', formattedMatric);
+        sessionStorage.setItem('studentDetails', JSON.stringify(fallbackDetails));
+        setSessionMatric(formattedMatric);
+        setStudentDetails(fallbackDetails);
+      })
+      .finally(() => {
+        setGateLoading(false);
+      });
   };
 
   const handleLogout = () => {
     sessionStorage.removeItem('studentMatric');
-    sessionStorage.removeItem('studentToken');
     sessionStorage.removeItem('studentDetails');
     setSessionMatric('');
-    setSessionToken('');
     setGateMatric('');
-    setGateCode('');
-    setGateStep(1);
     setStudentDetails({
       studentName: '',
       matricNumber: '',
@@ -301,7 +266,7 @@ export default function App() {
           <div className="view active">
             <div className="section">
               <div className="section-title">
-                {gateStep === 1 ? 'Access Student Portal' : 'Security Check'}
+                Access Student Portal
               </div>
               
               {gateError && (
@@ -310,64 +275,27 @@ export default function App() {
                 </div>
               )}
 
-              {gateStep === 1 ? (
-                <form onSubmit={handleAccessSubmit}>
-                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                    <label htmlFor="gate-matric">Student Matriculation Number</label>
-                    <input
-                      type="text"
-                      id="gate-matric"
-                      placeholder="e.g. FPA/SW/19/3-0001"
-                      value={gateMatric}
-                      onChange={(e) => setGateMatric(e.target.value)}
-                      required
-                      style={{ width: '100%', boxSizing: 'border-box' }}
-                    />
-                    <small style={{ display: 'block', marginTop: '6px', color: 'var(--color-text-secondary)', fontSize: '11px', lineHeight: 1.4 }}>
-                      Please enter your matriculation number. If you have existing records, a one-time verification link will be sent to your registered email for privacy.
-                    </small>
-                  </div>
-                  <button type="submit" className="pay-btn" disabled={gateLoading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    {gateLoading ? <span className="spinner"></span> : <i className="ti ti-shield-lock"></i>}
-                    <span>{gateLoading ? 'Validating...' : 'Access Portal'}</span>
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handleVerifySubmit}>
-                  <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                    <label htmlFor="gate-code">6-Digit Access Code</label>
-                    <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 16px 0', lineHeight: 1.45 }}>
-                      Existing records found. A 6-digit access code has been sent to your registered email: <strong style={{ color: 'var(--color-text-primary)' }}>{maskedEmail}</strong>.
-                    </p>
-                    <input
-                      type="text"
-                      id="gate-code"
-                      placeholder="XXXXXX"
-                      value={gateCode}
-                      onChange={(e) => setGateCode(e.target.value)}
-                      maxLength={6}
-                      required
-                      style={{ width: '100%', boxSizing: 'border-box', letterSpacing: '4px', textAlign: 'center', fontWeight: 'bold', fontSize: '18px' }}
-                    />
-                  </div>
-                  <button type="submit" className="pay-btn" disabled={gateLoading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-                    {gateLoading ? <span className="spinner"></span> : <i className="ti ti-circle-check"></i>}
-                    <span>{gateLoading ? 'Verifying...' : 'Unlock Portal'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="pay-btn secondary"
-                    onClick={() => {
-                      setGateStep(1);
-                      setGateCode('');
-                      setGateError('');
-                    }}
-                    style={{ marginTop: '10px' }}
-                  >
-                    Go Back
-                  </button>
-                </form>
-              )}
+              <form onSubmit={handleAccessSubmit}>
+                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
+                  <label htmlFor="gate-matric">Student Matriculation Number</label>
+                  <input
+                    type="text"
+                    id="gate-matric"
+                    placeholder="e.g. FPA/SW/19/3-0001"
+                    value={gateMatric}
+                    onChange={(e) => setGateMatric(e.target.value)}
+                    required
+                    style={{ width: '100%', boxSizing: 'border-box' }}
+                  />
+                  <small style={{ display: 'block', marginTop: '6px', color: 'var(--color-text-secondary)', fontSize: '11px', lineHeight: 1.4 }}>
+                    Please enter your matriculation number. Once loaded, you can make payments and download receipts for this matriculation number.
+                  </small>
+                </div>
+                <button type="submit" className="pay-btn" disabled={gateLoading} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  {gateLoading ? <span className="spinner"></span> : <i className="ti ti-login"></i>}
+                  <span>{gateLoading ? 'Accessing...' : 'Enter Portal'}</span>
+                </button>
+              </form>
             </div>
           </div>
         ) : (
@@ -438,7 +366,6 @@ export default function App() {
                     studentDetails={studentDetails}
                     selectedTypes={selectedTypes}
                     session={session}
-                    sessionToken={sessionToken}
                     onEdit={() => setPaneStep(2)}
                   />
                 )}
@@ -446,7 +373,7 @@ export default function App() {
             )}
 
             {activeTab === 'history' && (
-              <PaymentHistory sessionMatric={sessionMatric} sessionToken={sessionToken} />
+              <PaymentHistory sessionMatric={sessionMatric} />
             )}
           </>
         )}

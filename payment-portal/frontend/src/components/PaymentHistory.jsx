@@ -16,11 +16,7 @@ export default function PaymentHistory({ sessionMatric, sessionToken }) {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch(`/api/payments/history/${encodeURIComponent(sessionMatric)}`, {
-        headers: {
-          'Authorization': `Bearer ${sessionToken}`
-        }
-      });
+      const response = await fetch(`/api/payments/history/${encodeURIComponent(sessionMatric)}`);
       const resData = await response.json();
 
       if (resData.success) {

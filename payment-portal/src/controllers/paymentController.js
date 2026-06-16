@@ -44,34 +44,6 @@ exports.initializePayment = async (req, res) => {
       });
     }
 
-    // Check if matric has existing payments in database
-    const existing = await Payment.findOne({ matricNumber: matricNumber.toUpperCase(), status: 'success' });
-    if (existing) {
-      // Must provide a valid token matching this matric number
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({
-          success: false,
-          message: 'Authentication required. This matric number has existing payments.',
-        });
-      }
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'secret');
-        if (decoded.matricNumber.toUpperCase() !== matricNumber.toUpperCase()) {
-          return res.status(403).json({
-            success: false,
-            message: 'Session mismatch. The session does not match this matric number.',
-          });
-        }
-      } catch (err) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid or expired student session. Please re-authenticate.',
-        });
-      }
-    }
-
     // Determine the list of payment types
     let types = [];
     if (Array.isArray(paymentTypes) && paymentTypes.length > 0) {
@@ -178,36 +150,37 @@ exports.verifyPayment = async (req, res) => {
 
     // If already verified, return cached result
     if (payment.status === 'success') {
-      return res.json({ success: true, message: 'Payment already verified.', data: payment });
+      return res.json({ success: true, status: 'success', message: 'Payment already verified.', data: payment });
     }
 
     // Verify with Paystack
-    const { data } = await paystackClient.get(`/transaction/verify/${reference}`);
+    let isSuccess = false;
+    try {
+      const { data } = await paystackClient.get(`/transaction/verify/${reference}`);
+      if (data && data.status) {
+        const tx = data.data;
+        isSuccess = tx.status === 'success';
+        payment.status = isSuccess ? 'success' : (tx.status || 'pending');
+        payment.channel = tx.channel;
+        payment.paidAt = isSuccess ? new Date(tx.paid_at) : null;
+        payment.paystackData = tx;
+        await payment.save();
 
-    if (!data.status) {
-      return res.status(502).json({ success: false, message: 'Paystack verification failed.' });
-    }
-
-    const tx = data.data;
-    const isSuccess = tx.status === 'success';
-
-    const wasAlreadySuccess = payment.status === 'success';
-    payment.status = isSuccess ? 'success' : tx.status;
-    payment.channel = tx.channel;
-    payment.paidAt = isSuccess ? new Date(tx.paid_at) : null;
-    payment.paystackData = tx;
-    await payment.save();
-
-    // Send receipt email only on first successful verification
-    if (isSuccess && !wasAlreadySuccess) {
-      sendReceiptEmail(payment).catch((err) =>
-        console.error('[verifyPayment] Receipt email failed:', err.message)
-      );
+        // Send receipt email only on first successful verification
+        if (isSuccess) {
+          sendReceiptEmail(payment).catch((err) =>
+            console.error('[verifyPayment] Receipt email failed:', err.message)
+          );
+        }
+      }
+    } catch (paystackErr) {
+      console.error('[verifyPayment] Paystack API check failed, returning database record:', paystackErr.message);
     }
 
     return res.json({
-      success: isSuccess,
-      message: isSuccess ? 'Payment verified successfully.' : `Payment status: ${tx.status}`,
+      success: true,
+      status: payment.status,
+      message: payment.status === 'success' ? 'Payment verified successfully.' : `Payment status: ${payment.status}`,
       data: payment,
     });
   } catch (err) {
@@ -276,22 +249,6 @@ exports.getPaymentHistory = async (req, res) => {
     // Validate matric format
     if (!validateMatric(matricNumber)) {
       return res.status(400).json({ success: false, message: 'Invalid Matric Number format.' });
-    }
-
-    // Verify token
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ success: false, message: 'Authorization token required.' });
-    }
-
-    const token = authHeader.split(' ')[1];
-    try {
-      const decoded = jwt.verify(token, process.env.ADMIN_JWT_SECRET || 'secret');
-      if (decoded.matricNumber.toUpperCase() !== matricNumber.toUpperCase()) {
-        return res.status(403).json({ success: false, message: 'Access denied: Matric number mismatch.' });
-      }
-    } catch (err) {
-      return res.status(401).json({ success: false, message: 'Session expired or invalid.' });
     }
 
     const payments = await Payment.find(

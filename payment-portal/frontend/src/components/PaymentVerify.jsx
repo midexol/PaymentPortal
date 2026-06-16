@@ -26,8 +26,11 @@ export default function PaymentVerify({ onNavigate }) {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        setStatus('success');
+        setStatus(data.status); // Set status to 'success', 'pending', or 'failed'
         setPaymentDetails(data.data);
+        if (data.status === 'failed') {
+          setErrorMsg(data.message || 'Payment was unsuccessful on gateway.');
+        }
       } else {
         setStatus('failed');
         setErrorMsg(data.message || 'Transaction verification failed.');
@@ -76,7 +79,7 @@ export default function PaymentVerify({ onNavigate }) {
 
   return (
     <div className="verify-card active">
-      {status === 'success' ? (
+      {status === 'success' && (
         <div className="verify-success-view">
           <div className="success-badge-container">
             <div className="success-badge-pulse"></div>
@@ -147,7 +150,71 @@ export default function PaymentVerify({ onNavigate }) {
             </button>
           </div>
         </div>
-      ) : (
+      )}
+
+      {status === 'pending' && (
+        <div className="verify-pending-view" style={{ textAlign: 'center', padding: '10px 0' }}>
+          <div className="success-badge-container" style={{ borderColor: 'var(--color-text-warning)' }}>
+            <div className="success-badge-pulse" style={{ background: 'rgba(245, 158, 11, 0.2)' }}></div>
+            <div className="success-badge-icon" style={{ background: 'var(--color-text-warning)' }}>
+              <i className="ti ti-hourglass" style={{ color: '#fff' }}></i>
+            </div>
+          </div>
+
+          <h2>Payment Pending</h2>
+          <p className="success-subtitle" style={{ color: 'var(--color-text-secondary)' }}>
+            Your transaction is currently processing or awaiting confirmation from your bank / Paystack.
+          </p>
+
+          <div className="receipt-section" style={{ borderLeft: '4px solid var(--color-text-warning)' }}>
+            <div className="receipt-header">
+              <h3>Transaction Details</h3>
+              <span className="receipt-ref">Ref: {paymentDetails?.reference}</span>
+            </div>
+
+            <div className="receipt-grid">
+              <div className="receipt-row">
+                <span>Student Name</span>
+                <strong>{paymentDetails?.studentName}</strong>
+              </div>
+              <div className="receipt-row">
+                <span>Matric Number</span>
+                <strong>{paymentDetails?.matricNumber}</strong>
+              </div>
+              <div className="receipt-row">
+                <span>Payment Category</span>
+                <span>{paymentDetails?.paymentLabel}</span>
+              </div>
+              <div className="receipt-row">
+                <span>Academic Session</span>
+                <span>{paymentDetails?.session}</span>
+              </div>
+              <div className="receipt-row total">
+                <span>Amount Due</span>
+                <strong>{formatCurrency(paymentDetails?.totalKobo / 100)}</strong>
+              </div>
+            </div>
+          </div>
+
+          <div className="verify-actions" style={{ marginTop: '24px' }}>
+            <button
+              className="pay-btn primary-large"
+              onClick={() => {
+                setLoading(true);
+                verifyTransaction(reference);
+              }}
+              style={{ background: 'var(--color-text-warning)', borderColor: 'var(--color-text-warning)' }}
+            >
+              <i className="ti ti-reload"></i> Check Status Again
+            </button>
+            <button className="pay-btn secondary" onClick={() => onNavigate('/')}>
+              Return to Portal
+            </button>
+          </div>
+        </div>
+      )}
+
+      {status === 'failed' && (
         <div className="verify-failed-view">
           <div className="failed-badge-icon">
             <i className="ti ti-circle-x"></i>
