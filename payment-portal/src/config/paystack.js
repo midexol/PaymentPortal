@@ -13,8 +13,7 @@ const paystackClient = axios.create({
 // Fixed amounts per payment type (in kobo)
 const PAYMENT_AMOUNTS = {
   dept_due:     { label: 'Departmental due',       amountKobo: 200000 },  // ₦2,000
-  hnd1_manual:  { label: 'HND I Manuals',          amountKobo: 500000 },  // ₦5,000
-  hnd2_manual:  { label: 'HND II Manuals',         amountKobo: 500000 },  // ₦5,000
+  manual:       { label: 'Manuals',                 amountKobo: 500000 },  // ₦5,000
   seminar:      { label: 'Seminar',                amountKobo: 300000 },  // ₦3,000
   project:      { label: 'Project Defence',        amountKobo: 400000 },  // ₦4,000
   binding:      { label: 'Binding',                amountKobo: 150000 },  // ₦1,500

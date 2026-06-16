@@ -2,7 +2,7 @@ import React from 'react';
 
 const PAYMENT_TYPES = [
   { type: 'dept_due', label: 'Departmental due', amount: 2000, icon: 'ti ti-cash' },
-  { type: 'hnd_manual', label: 'Manuals', amount: 5000, icon: 'ti ti-book' },
+  { type: 'manual', label: 'Manuals', amount: 5000, icon: 'ti ti-book' },
   { type: 'seminar', label: 'Seminar', amount: 3000, icon: 'ti ti-presentation' },
   { type: 'project', label: 'Project Defence', amount: 4000, icon: 'ti ti-briefcase' },
   { type: 'binding', label: 'Binding', amount: 1500, icon: 'ti ti-notes' },

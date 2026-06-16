@@ -41,7 +41,7 @@ export default function App() {
   });
 
   const [selectedTypes, setSelectedTypes] = useState(['dept_due']);
-  const [session, setSession] = useState('2024/2025');
+  const [session, setSession] = useState('2025/2026');
 
   // Access Gate states
   const [gateMatric, setGateMatric] = useState('');
