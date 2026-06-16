@@ -78,7 +78,7 @@ exports.initializePayment = async (req, res) => {
       amount: totalKobo,
       reference,
       currency: 'NGN',
-      callback_url: `${process.env.FRONTEND_URL}/payment/verify?reference=${reference}`,
+      callback_url: `${req.headers['x-forwarded-proto'] || req.protocol}://${req.get('host')}/payment/verify?reference=${reference}`,
       metadata: {
         studentName,
         matricNumber,
